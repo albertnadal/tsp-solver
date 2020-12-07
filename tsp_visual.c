@@ -1,9 +1,9 @@
 /*****************************************************************
 [ Travelling Salesman Problem Solver using Genetic Programming ]
 
-gcc -O3 -std=c99 tsp.c -o tsp
+gcc -O3 -std=c99 `pkg-config --libs --cflags raylib` tsp_visual.c -o tsp_visual
 
-./tsp < map_berlin52.txt
+./tsp_visual < map_berlin52.txt
 
 Author: Albert Nadal Garriga
 Date: 13-10-2002
@@ -17,10 +17,13 @@ Update: 06-12-2020
 #include <time.h>
 #include <stdbool.h>
 #include <string.h>
+#include <raylib.h>
 
 #define MAX_GENERATIONS 500000
 #define MAX_SOLUTIONS 30
 #define UNDEFINED (UINT32_MAX-1)
+#define SCREEN_WIDTH 1080
+#define SCREEN_HEIGHT 700
 
 typedef struct City {
     int x;
@@ -368,6 +371,45 @@ void shuffle_solutions(Solutions *solutions, int total_cities) {
     }
 }
 
+void draw(const uint32_t best_solution[], uint32_t score, RenderTexture2D *render_texture, float scale, WorldData *data) {
+    ClearBackground(GREEN);
+    BeginDrawing();
+    BeginTextureMode(*render_texture);
+    ClearBackground(RAYWHITE);
+    for (int i = 0; i < data->total_cities; i++) {
+        int current_city_index = best_solution[pos(i, data->total_cities)];
+        int next_city_index = best_solution[pos(i + 1, data->total_cities)];
+        DrawLine(data->cities[current_city_index].x * scale, data->cities[current_city_index].y * scale,
+                 data->cities[next_city_index].x * scale, data->cities[next_city_index].y * scale, DARKBLUE);
+    }
+
+    for (int i = 0; i < data->total_cities; i++) {
+        DrawCircle((int)(data->cities[i].x * scale), (int)(data->cities[i].y * scale), 4, DARKBLUE);
+    }
+    char str_score[40];
+    sprintf(str_score, "score: %d", score);
+    DrawText(str_score, 20, 20, 20, DARKGRAY);
+    EndTextureMode();
+    DrawTexturePro(render_texture->texture, (Rectangle) {0, 0, (float)render_texture->texture.width, (float)-render_texture->texture.height}, (Rectangle) {0, 0, 2 * SCREEN_WIDTH, 2 * SCREEN_HEIGHT}, (Vector2) {0.0f, 0.0f}, 0, WHITE);
+    EndDrawing();
+}
+
+void init_window(const char title[], int width, int height, RenderTexture2D *render_texture, float *scale, WorldData *data) {
+    InitWindow(width, height, title);
+    //SetTargetFPS(60);
+    *render_texture = LoadRenderTexture(width, height);
+    int farthest_y = 0, farthest_x = 0;
+    for (int i = 0; i < data->total_cities; i++) {
+        if (data->cities[i].x > farthest_x)
+            farthest_x = data->cities[i].x;
+        if (data->cities[i].y > farthest_y)
+            farthest_y = data->cities[i].y;
+    }
+    float scale_x = (float) width / (float) farthest_x;
+    float scale_y = (float) height / (float) farthest_y;
+    *scale = fminf(scale_x, scale_y);
+}
+
 int main(__unused int argc, __unused char *argv[]) {
     WorldData data;
     Solutions solutions_group_a, solutions_group_b;
@@ -379,6 +421,10 @@ int main(__unused int argc, __unused char *argv[]) {
     srand((unsigned) time(NULL));
     load_data(&data);
 
+    RenderTexture2D render_texture;
+    float scale;
+    init_window(title, SCREEN_WIDTH, SCREEN_HEIGHT, &render_texture, &scale, &data);
+
     uint32_t temps_inici = (unsigned) time(NULL);
     init_solutions(data.total_cities, &solutions_group_a, &inheritors_group_a);
     evaluate_solutions(&solutions_group_a, &data);
@@ -388,7 +434,7 @@ int main(__unused int argc, __unused char *argv[]) {
     evaluate_solutions(&solutions_group_b, &data);
     sort_solutions(&solutions_group_b);
 
-    for (int g = 0; g < MAX_GENERATIONS; g++) {
+    for (int g = 0; (g < MAX_GENERATIONS) && !WindowShouldClose(); g++) {
         crossover_and_mutation(&solutions_group_a, &inheritors_group_a, &data);
         evaluate_solutions(&inheritors_group_a, &data);
         sort_solutions(&inheritors_group_a);
@@ -404,15 +450,20 @@ int main(__unused int argc, __unused char *argv[]) {
             shuffle_solutions(&solutions_group_b, data.total_cities);
             evaluate_solutions(&solutions_group_b, &data);
             sort_solutions(&solutions_group_b);
+            draw(solutions_group_a.solution[0], best_score, &render_texture, scale, &data); // Draw frequently to avoid break the graphics main loop
         }
 
         if (solutions_group_a.score[0] < best_score) {
             best_score = solutions_group_a.score[0];
             printf("\n[ GENERATION: %d/%d ] [ BEST DISTANCE: %d ] [ TIME: %ds. ]\nSolutions found: \n", g, MAX_GENERATIONS, best_score, (unsigned) time(NULL) - temps_inici);
             print_solutions(&solutions_group_a, data.total_cities);
+            draw(solutions_group_a.solution[0], best_score, &render_texture, scale, &data);
         }
     }
 
     free_mem(&data, &solutions_group_a, &inheritors_group_a, &solutions_group_b, &inheritors_group_b);
+    UnloadRenderTexture(render_texture);
+    CloseWindow();
+
     return 0;
 }
