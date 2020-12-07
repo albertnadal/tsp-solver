@@ -18,7 +18,7 @@ manualment es poden introduir les coordenades en un fitxer i volcar les dades
 en el moment d'execució de la següent manera.
 
 ```
-./tsp < mapa.txt
+./tsp < mapa.tsp
 ```
 
 Juntament amb el codi font s'adjunten diferents mapes de prova amb extensió txt

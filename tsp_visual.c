@@ -3,7 +3,7 @@
 
 gcc -O3 -std=c99 `pkg-config --libs --cflags raylib` tsp_visual.c -o tsp_visual
 
-./tsp_visual < map_berlin52.txt
+./tsp_visual < map_berlin52.tsp
 
 Author: Albert Nadal Garriga
 Date: 13-10-2002

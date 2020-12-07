@@ -3,7 +3,7 @@
 
 gcc -O3 -std=c99 tsp.c -o tsp
 
-./tsp < map_berlin52.txt
+./tsp < map_berlin52.tsp
 
 Author: Albert Nadal Garriga
 Date: 13-10-2002
