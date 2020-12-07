@@ -21,7 +21,7 @@ Update: 06-12-2020
 
 #define GENERATIONS 500000
 #define MAX_SOLUTIONS 30
-#define UNDEFINED UINT32_MAX-1
+#define UNDEFINED (UINT32_MAX-1)
 #define SCREEN_WIDTH 1080
 #define SCREEN_HEIGHT 700
 
@@ -84,8 +84,8 @@ void init_solutions(int total_cities, Solutions *solutions, Solutions *solutions
     // Shuffle solutions
     for (int i = 0; i < MAX_SOLUTIONS; i++) {
         for (int j = 0; j < total_cities; j++) {
-            int pos1 = rand() % (total_cities);
-            int pos2 = rand() % (total_cities);
+            int pos1 = rand() % (total_cities); // NOLINT(cert-msc30-c, cert-msc50-cpp)
+            int pos2 = rand() % (total_cities); // NOLINT(cert-msc30-c, cert-msc50-cpp)
             uint32_t tmp = solutions->solution[i][pos1];
             solutions->solution[i][pos1] = solutions->solution[i][pos2];
             solutions->solution[i][pos2] = tmp;
@@ -192,8 +192,7 @@ uint32_t get_repeated_city(uint32_t *neighbours) {
 }
 
 uint32_t get_best_neighbour(int city_index, uint32_t *neighbours, WorldData *data) {
-    uint32_t distance, n, best_neighbour =
-            UNDEFINED, best_distance = UINT32_MAX;
+    uint32_t distance, n, best_neighbour = UNDEFINED, best_distance = UINT32_MAX;
     int i = 0;
 
     if (neighbours[0] == UNDEFINED)
@@ -264,8 +263,8 @@ void mutate_solution(uint32_t *solution, int total_cities) {
     div_t e = div(total_cities, 10); // Mutate every 10 cities
 
     for (int i = e.quot; i > 0; i--) {
-        y = rand() % (total_cities);
-        x = rand() % (total_cities);
+        y = rand() % (total_cities); // NOLINT(cert-msc30-c, cert-msc50-cpp)
+        x = rand() % (total_cities); // NOLINT(cert-msc30-c, cert-msc50-cpp)
         tmp = solution[x];
         solution[x] = solution[y];
         solution[y] = tmp;
@@ -273,7 +272,7 @@ void mutate_solution(uint32_t *solution, int total_cities) {
 }
 
 void crossover_and_mutation(Solutions *solutions, Solutions *inheritors, WorldData *data) {
-    for (int i = 0; i < MAX_SOLUTIONS - 1; i++) {
+    for (int i = 0; i < MAX_SOLUTIONS ; i++) {
         int x = 0, pos = 0, total_cities = data->total_cities;
         bool cities_used[total_cities], end = false;
         memset(cities_used, 0, total_cities);  // Mark all cities as non used yet
@@ -284,15 +283,25 @@ void crossover_and_mutation(Solutions *solutions, Solutions *inheritors, WorldDa
         uint32_t neighbours[total_cities + 1];
 
         while ((pos < total_cities) && !end) {
-            get_neighbours(x, solutions->solution[i], solutions->solution[i + 1], cities_used, total_cities, neighbours,
-                           pos);
+            get_neighbours(x, solutions->solution[i], solutions->solution[(i + 1)%MAX_SOLUTIONS], cities_used, total_cities, neighbours, pos);
 
             if (neighbours[0] != UNDEFINED) {
                 inheritors->solution[i][pos] = get_best_neighbour(solutions->solution[i][x], neighbours, data);
                 cities_used[inheritors->solution[i][pos]] = true;
                 x = get_city_index_in_solution(inheritors->solution[i][pos], solutions->solution[i]);
                 pos++;
-            } else end = true;
+            } else {
+                // If there are no neighbours available then fill the rest of the inheritor solution with the rest of available cities
+                int p = pos;
+                for (int j = 0; (j < total_cities) && (p < total_cities); j++) {
+                    if (cities_used[j] == false) {
+                        inheritors->solution[i][p] = cities_used[j];
+                        cities_used[j] = true;
+                        p++;
+                    }
+                }
+                end = true;
+            }
         }
 
         if (are_equal(solutions->solution[i], inheritors->solution[i], total_cities))
@@ -353,8 +362,8 @@ void shuffle_solutions(Solutions *solutions, int total_cities) {
 
     for (int i = 0; i < MAX_SOLUTIONS; i++) {
         for (int j = 0; j < total_cities; j++) {
-            pos1 = rand() % (total_cities);
-            pos2 = rand() % (total_cities);
+            pos1 = rand() % (total_cities); // NOLINT(cert-msc30-c, cert-msc50-cpp)
+            pos2 = rand() % (total_cities); // NOLINT(cert-msc30-c, cert-msc50-cpp)
             aux = solutions->solution[i][pos1];
             solutions->solution[i][pos1] = solutions->solution[i][pos2];
             solutions->solution[i][pos2] = aux;
@@ -362,7 +371,7 @@ void shuffle_solutions(Solutions *solutions, int total_cities) {
     }
 }
 
-void draw(uint32_t best_solution[], uint32_t score, RenderTexture2D *render_texture, float scale, WorldData *data) {
+void draw(const uint32_t best_solution[], uint32_t score, RenderTexture2D *render_texture, float scale, WorldData *data) {
     ClearBackground(GREEN);
     BeginDrawing();
     BeginTextureMode(*render_texture);
@@ -375,15 +384,13 @@ void draw(uint32_t best_solution[], uint32_t score, RenderTexture2D *render_text
     }
 
     for (int i = 0; i < data->total_cities; i++) {
-        DrawCircle(data->cities[i].x * scale, data->cities[i].y * scale, 4, DARKBLUE);
+        DrawCircle((int)(data->cities[i].x * scale), (int)(data->cities[i].y * scale), 4, DARKBLUE);
     }
     char str_score[40];
     sprintf(str_score, "score: %d", score);
     DrawText(str_score, 20, 20, 20, DARKGRAY);
     EndTextureMode();
-    DrawTexturePro(render_texture->texture,
-                   (Rectangle) {0, 0, render_texture->texture.width, -render_texture->texture.height},
-                   (Rectangle) {0, 0, 2 * SCREEN_WIDTH, 2 * SCREEN_HEIGHT}, (Vector2) {0.0f, 0.0f}, 0, WHITE);
+    DrawTexturePro(render_texture->texture, (Rectangle) {0, 0, (float)render_texture->texture.width, (float)-render_texture->texture.height}, (Rectangle) {0, 0, 2 * SCREEN_WIDTH, 2 * SCREEN_HEIGHT}, (Vector2) {0.0f, 0.0f}, 0, WHITE);
     EndDrawing();
 }
 
@@ -398,8 +405,8 @@ void init_window(const char title[], int width, int height, RenderTexture2D *ren
         if (data->cities[i].y > farthest_y)
             farthest_y = data->cities[i].y;
     }
-    float scale_x = width / (float) farthest_x;
-    float scale_y = height / (float) farthest_y;
+    float scale_x = (float) width / (float) farthest_x;
+    float scale_y = (float) height / (float) farthest_y;
     *scale = fminf(scale_x, scale_y);
 }
 
@@ -448,8 +455,7 @@ int main(__unused int argc, __unused char *argv[]) {
 
         if (solutions_group_a.score[0] < best_score) {
             best_score = solutions_group_a.score[0];
-            printf("\n[ GENERATION: %d/%d ] [ BEST DISTANCE: %d ] [ TIME: %ds. ]\nSolutions found: \n", g, GENERATIONS,
-                   best_score, (unsigned) time(NULL) - temps_inici);
+            printf("\n[ GENERATION: %d/%d ] [ BEST DISTANCE: %d ] [ TIME: %ds. ]\nSolutions found: \n", g, GENERATIONS, best_score, (unsigned) time(NULL) - temps_inici);
             print_solutions(&solutions_group_a, data.total_cities);
             draw(solutions_group_a.solution[0], best_score, &render_texture, scale, &data);
         }
